@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finances</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:           var(--hub-bg, #f9fafb);
+      --card:         var(--hub-surface, #ffffff);
+      --border:       var(--hub-border, #e5e7eb);
+      --text:         var(--hub-text, #111827);
+      --muted:        var(--hub-text-muted, #6b7280);
+      --accent:       var(--hub-primary, #111827);
+      --accent-fg:    var(--hub-primary-fg, #ffffff);
+      --accent-hover: var(--hub-primary-hover, #374151);
+      --radius:       var(--hub-radius, 0.5rem);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: var(--hub-font-size, 15px); }
+    .app { max-width: 680px; margin: 0 auto; padding: 20px 16px 60px; }
+
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap: 8px; }
+    .header h1 { font-size: 1.4rem; font-weight: 700; }
+    .tabs { display: flex; gap: 0; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+    .tab { flex: 1; background: var(--card); color: var(--muted); border: none; padding: 8px 0; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+    .tab.active { background: var(--accent); color: var(--accent-fg); }
+    .btn { background: var(--accent); color: var(--accent-fg); border: none; border-radius: 8px; padding: 7px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .btn-outline { background: transparent; color: var(--accent); border: 1.5px solid var(--border); }
+    .btn-outline:hover { border-color: var(--accent); }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+
+    .budget-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .budget-card { background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
+    .budget-card:hover { border-color: var(--accent); }
+    .budget-card.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+    .budget-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .budget-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .budget-period { font-size: 0.75rem; color: var(--muted); margin-bottom: 10px; }
+    .progress-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin-bottom: 6px; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .budget-amounts { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); }
+    .budget-amounts .spent { color: var(--text); font-weight: 600; }
+    .over-budget { color: #dc2626 !important; }
+
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .section-title { font-size: 1rem; font-weight: 700; }
+
+    .tx-list { display: flex; flex-direction: column; gap: 2px; }
+    .tx-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: border-color 0.15s; }
+    .tx-item:hover { border-color: var(--accent); }
+    .tx-amount { font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
+    .tx-info { flex: 1; min-width: 0; }
+    .tx-desc { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tx-meta { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+    .budget-badge { display: inline-block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; color: var(--muted); }
+
+    .empty { text-align: center; padding: 48px 16px; color: var(--muted); }
+    .empty p { margin-bottom: 12px; }
+
+    /* Modal */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal { background: var(--card); border-radius: 14px; padding: 24px; width: 100%; max-width: 440px; box-shadow: 0 20px 60px rgba(0,0,0,.2); max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 18px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 5px; color: var(--muted); }
+    .field input, .field select { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 0.9rem; background: var(--bg); color: var(--text); }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+    .modal-left { margin-right: auto; }
+
+    .color-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .color-swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+    .color-swatch.selected { border-color: var(--text); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>💰 Finances</h1>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" onclick="openBudgetForm()">+ Budget</button>
+      <button class="btn" onclick="openTxForm()">+ Transaction</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabBudgets" onclick="setTab('budgets')">Budgets</button>
+    <button class="tab" id="tabTransactions" onclick="setTab('transactions')">All Transactions</button>
+  </div>
+
+  <div id="budgetView">
+    <div id="budgetGrid" class="budget-grid"></div>
+    <div id="txSection" style="display:none">
+      <div class="section-header">
+        <span class="section-title" id="txSectionTitle">Transactions</span>
+        <button class="btn btn-outline" style="font-size:0.75rem;padding:4px 10px" onclick="clearBudgetFilter()">Show all</button>
+      </div>
+      <div id="budgetTxList" class="tx-list"></div>
+    </div>
+  </div>
+
+  <div id="allTxView" style="display:none">
+    <div class="section-header">
+      <span class="section-title">All Transactions</span>
+    </div>
+    <div id="allTxList" class="tx-list"></div>
+  </div>
+</div>
+
+<!-- Budget modal -->
+<div class="overlay" id="budgetOverlay" style="display:none" onclick="if(event.target===this)closeBudgetForm()">
+  <div class="modal">
+    <h2 id="budgetTitle">New Budget</h2>
+    <div class="field"><label>Name *</label><input id="bName" type="text" placeholder="e.g. Groceries" /></div>
+    <div class="field">
+      <label>Monthly Limit ($) *</label>
+      <input id="bLimit" type="number" min="0" step="0.01" placeholder="500.00" />
+    </div>
+    <div class="field">
+      <label>Period</label>
+      <select id="bPeriod">
+        <option value="monthly">Monthly</option>
+        <option value="weekly">Weekly</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Color</label>
+      <div class="color-row" id="colorRow"></div>
+    </div>
+    <div class="modal-actions">
+      <div class="modal-left">
+        <button class="btn btn-danger" id="budgetDeleteBtn" onclick="deleteBudget()" style="display:none">Delete</button>
+      </div>
+      <button class="btn btn-outline" onclick="closeBudgetForm()">Cancel</button>
+      <button class="btn" onclick="saveBudget()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction modal -->
+<div class="overlay" id="txOverlay" style="display:none" onclick="if(event.target===this)closeTxForm()">
+  <div class="modal">
+    <h2 id="txTitle">New Transaction</h2>
+    <div class="field">
+      <label>Amount ($) *</label>
+      <input id="tAmount" type="number" min="0" step="0.01" placeholder="24.99" />
+    </div>
+    <div class="field"><label>Description *</label><input id="tDesc" type="text" placeholder="e.g. Weekly grocery run" /></div>
+    <div class="field"><label>Date *</label><input id="tDate" type="date" /></div>
+    <div class="field">
+      <label>Budget</label>
+      <select id="tBudget">
+        <option value="">— Uncategorized —</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <div class="modal-left">
+        <button class="btn btn-danger" id="txDeleteBtn" onclick="deleteTransaction()" style="display:none">Delete</button>
+      </div>
+      <button class="btn btn-outline" onclick="closeTxForm()">Cancel</button>
+      <button class="btn" onclick="saveTransaction()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { esc } from '/hub-sdk.js';
+
+const DB      = window.__DB_URL ?? '';
+const CONTEXT = window.__CONTEXT_URL ?? '';
+
+const COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#64748b'];
+
+let budgets      = [];
+let transactions = [];
+let members      = [];
+let activeTab    = 'budgets';
+let selectedBudgetId = null;
+let editingBudgetId  = null;
+let editingTxId      = null;
+let selectedColor    = COLORS[0];
+
+/* ── DB helper ─────────────────────────────────────────────────────────────── */
+async function db(sql, params = []) {
+  if (!DB) return { rows: [] };
+  const res = await fetch(DB, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sql, params }),
+  });
+  if (!res.ok) throw new Error(`DB error ${res.status}`);
+  return res.json();
+}
+
+/* ── Data loading ──────────────────────────────────────────────────────────── */
+async function loadAll() {
+  const [bRes, tRes, ctx] = await Promise.all([
+    db('SELECT id, name, limit_cents, period, color, created_by, created_at FROM app_finances__budgets ORDER BY name'),
+    db('SELECT id, budget_id, amount_cents, description, date, member_id, created_at FROM app_finances__transactions ORDER BY date DESC, created_at DESC'),
+    fetch(`${CONTEXT}?keys=family.members`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+  ]);
+  budgets      = bRes.rows ?? [];
+  transactions = tRes.rows ?? [];
+  members      = ctx['family.members'] ?? [];
+}
+
+/* ── Computed summaries ─────────────────────────────────────────────────────── */
+function budgetSummary(budget) {
+  const txs   = transactions.filter(t => t.budget_id === budget.id);
+  const spent = txs.reduce((s, t) => s + t.amount_cents, 0);
+  const pct   = budget.limit_cents > 0 ? Math.min(spent / budget.limit_cents, 1) : 0;
+  return { spent, remaining: budget.limit_cents - spent, pct };
+}
+
+function fmtMoney(cents) {
+  return '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function memberName(id) {
+  return members.find(m => m.id === id)?.name ?? id ?? '';
+}
+
+function budgetName(id) {
+  return budgets.find(b => b.id === id)?.name ?? 'Uncategorized';
+}
+
+/* ── Rendering ─────────────────────────────────────────────────────────────── */
+function renderBudgets() {
+  const grid = document.getElementById('budgetGrid');
+  if (!budgets.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><p>No budgets yet.</p><button class="btn" onclick="openBudgetForm()">Create your first budget</button></div>`;
+    hideTxSection();
+    return;
+  }
+
+  grid.innerHTML = budgets.map(b => {
+    const { spent, remaining, pct } = budgetSummary(b);
+    const over  = spent > b.limit_cents;
+    const color = b.color || COLORS[0];
+    const sel   = selectedBudgetId === b.id;
+    return `
+      <div class="budget-card ${sel ? 'selected' : ''}" onclick="selectBudget('${b.id}')">
+        <div class="budget-name">
+          <span class="budget-dot" style="background:${color}"></span>
+          ${esc(b.name)}
+        </div>
+        <div class="budget-period">${b.period}</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${(pct*100).toFixed(1)}%;background:${over?'#ef4444':color}"></div>
+        </div>
+        <div class="budget-amounts">
+          <span class="spent ${over?'over-budget':''}">${fmtMoney(spent)} spent</span>
+          <span class="${over?'over-budget':''}">
+            ${over ? fmtMoney(Math.abs(remaining))+' over' : fmtMoney(remaining)+' left'}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (selectedBudgetId) renderBudgetTransactions();
+  else hideTxSection();
+}
+
+function selectBudget(id) {
+  selectedBudgetId = selectedBudgetId === id ? null : id;
+  renderBudgets();
+}
+
+function clearBudgetFilter() {
+  selectedBudgetId = null;
+  renderBudgets();
+}
+
+function hideTxSection() {
+  document.getElementById('txSection').style.display = 'none';
+}
+
+function renderBudgetTransactions() {
+  const section = document.getElementById('txSection');
+  const budget  = budgets.find(b => b.id === selectedBudgetId);
+  if (!budget) { hideTxSection(); return; }
+
+  section.style.display = '';
+  document.getElementById('txSectionTitle').textContent = `${budget.name} — Transactions`;
+  const txs = transactions.filter(t => t.budget_id === selectedBudgetId);
+  renderTxList('budgetTxList', txs);
+}
+
+function renderAllTransactions() {
+  renderTxList('allTxList', transactions);
+}
+
+function renderTxList(containerId, txs) {
+  const el = document.getElementById(containerId);
+  if (!txs.length) {
+    el.innerHTML = `<div class="empty"><p>No transactions yet.</p></div>`;
+    return;
+  }
+  el.innerHTML = txs.map(t => `
+    <div class="tx-item" onclick="openTxForm('${t.id}')">
+      <div class="tx-amount">${fmtMoney(t.amount_cents)}</div>
+      <div class="tx-info">
+        <div class="tx-desc">${esc(t.description)}</div>
+        <div class="tx-meta">
+          ${t.date}
+          ${t.budget_id ? `&nbsp;·&nbsp;<span class="budget-badge">${esc(budgetName(t.budget_id))}</span>` : ''}
+          ${t.member_id ? `&nbsp;·&nbsp;${esc(memberName(t.member_id))}` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function render() {
+  if (activeTab === 'budgets') {
+    renderBudgets();
+    if (selectedBudgetId) renderBudgetTransactions();
+  } else {
+    renderAllTransactions();
+  }
+}
+
+/* ── Tab switching ─────────────────────────────────────────────────────────── */
+function setTab(tab) {
+  activeTab = tab;
+  document.getElementById('tabBudgets').classList.toggle('active', tab === 'budgets');
+  document.getElementById('tabTransactions').classList.toggle('active', tab === 'transactions');
+  document.getElementById('budgetView').style.display    = tab === 'budgets' ? '' : 'none';
+  document.getElementById('allTxView').style.display     = tab === 'transactions' ? '' : 'none';
+  render();
+}
+
+/* ── Budget form ───────────────────────────────────────────────────────────── */
+function renderColorPicker() {
+  document.getElementById('colorRow').innerHTML = COLORS.map(c =>
+    `<div class="color-swatch ${selectedColor===c?'selected':''}" style="background:${c}" onclick="pickColor('${c}')"></div>`
+  ).join('');
+}
+
+function pickColor(c) { selectedColor = c; renderColorPicker(); }
+
+function openBudgetForm(id) {
+  editingBudgetId = id || null;
+  const b = id ? budgets.find(x => x.id === id) : null;
+  document.getElementById('budgetTitle').textContent = b ? 'Edit Budget' : 'New Budget';
+  document.getElementById('bName').value   = b?.name ?? '';
+  document.getElementById('bLimit').value  = b ? (b.limit_cents / 100).toFixed(2) : '';
+  document.getElementById('bPeriod').value = b?.period ?? 'monthly';
+  selectedColor = b?.color || COLORS[0];
+  renderColorPicker();
+  document.getElementById('budgetDeleteBtn').style.display = b ? '' : 'none';
+  document.getElementById('budgetOverlay').style.display = 'flex';
+  document.getElementById('bName').focus();
+}
+
+function closeBudgetForm() {
+  document.getElementById('budgetOverlay').style.display = 'none';
+  editingBudgetId = null;
+}
+
+async function saveBudget() {
+  const name  = document.getElementById('bName').value.trim();
+  const limit = parseFloat(document.getElementById('bLimit').value);
+  if (!name || isNaN(limit) || limit < 0) { alert('Name and a valid limit are required.'); return; }
+  const limitCents = Math.round(limit * 100);
+  const period     = document.getElementById('bPeriod').value;
+  const now        = new Date().toISOString();
+
+  if (editingBudgetId) {
+    await db('UPDATE app_finances__budgets SET name=?, limit_cents=?, period=?, color=? WHERE id=?',
+      [name, limitCents, period, selectedColor, editingBudgetId]);
+    budgets = budgets.map(b => b.id === editingBudgetId
+      ? { ...b, name, limit_cents: limitCents, period, color: selectedColor } : b);
+  } else {
+    const id = crypto.randomUUID();
+    const createdBy = window.__CURRENT_MEMBER?.id ?? 'admin';
+    await db('INSERT INTO app_finances__budgets (id, name, limit_cents, period, color, created_by, created_at) VALUES (?,?,?,?,?,?,?)',
+      [id, name, limitCents, period, selectedColor, createdBy, now]);
+    budgets = [...budgets, { id, name, limit_cents: limitCents, period, color: selectedColor, created_by: createdBy, created_at: now }];
+  }
+
+  closeBudgetForm();
+  render();
+}
+
+async function deleteBudget() {
+  if (!editingBudgetId) return;
+  if (!confirm('Delete this budget? Its transactions will become uncategorized.')) return;
+  const id = editingBudgetId;
+  await db('UPDATE app_finances__transactions SET budget_id=NULL WHERE budget_id=?', [id]);
+  await db('DELETE FROM app_finances__budgets WHERE id=?', [id]);
+  budgets      = budgets.filter(b => b.id !== id);
+  transactions = transactions.map(t => t.budget_id === id ? { ...t, budget_id: null } : t);
+  if (selectedBudgetId === id) selectedBudgetId = null;
+  closeBudgetForm();
+  render();
+}
+
+/* ── Transaction form ──────────────────────────────────────────────────────── */
+function openTxForm(id) {
+  editingTxId = id || null;
+  const t = id ? transactions.find(x => x.id === id) : null;
+  document.getElementById('txTitle').textContent = t ? 'Edit Transaction' : 'New Transaction';
+  document.getElementById('tAmount').value = t ? (t.amount_cents / 100).toFixed(2) : '';
+  document.getElementById('tDesc').value   = t?.description ?? '';
+  document.getElementById('tDate').value   = t?.date ?? new Date().toISOString().slice(0, 10);
+
+  const sel = document.getElementById('tBudget');
+  sel.innerHTML = '<option value="">— Uncategorized —</option>' +
+    budgets.map(b => `<option value="${b.id}" ${t?.budget_id===b.id?'selected':''}>${esc(b.name)}</option>`).join('');
+  if (!t && selectedBudgetId) sel.value = selectedBudgetId;
+
+  document.getElementById('txDeleteBtn').style.display = t ? '' : 'none';
+  document.getElementById('txOverlay').style.display = 'flex';
+  document.getElementById('tAmount').focus();
+}
+
+function closeTxForm() {
+  document.getElementById('txOverlay').style.display = 'none';
+  editingTxId = null;
+}
+
+async function saveTransaction() {
+  const amount = parseFloat(document.getElementById('tAmount').value);
+  const desc   = document.getElementById('tDesc').value.trim();
+  const date   = document.getElementById('tDate').value;
+  if (isNaN(amount) || amount < 0 || !desc || !date) { alert('Amount, description, and date are required.'); return; }
+  const amountCents = Math.round(amount * 100);
+  const budgetId    = document.getElementById('tBudget').value || null;
+  const now         = new Date().toISOString();
+
+  if (editingTxId) {
+    await db('UPDATE app_finances__transactions SET amount_cents=?, description=?, date=?, budget_id=? WHERE id=?',
+      [amountCents, desc, date, budgetId, editingTxId]);
+    transactions = transactions.map(t => t.id === editingTxId
+      ? { ...t, amount_cents: amountCents, description: desc, date, budget_id: budgetId } : t);
+  } else {
+    const id       = crypto.randomUUID();
+    const memberId = window.__CURRENT_MEMBER?.id ?? null;
+    await db('INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date, member_id, created_at) VALUES (?,?,?,?,?,?,?)',
+      [id, budgetId, amountCents, desc, date, memberId, now]);
+    transactions = [{ id, budget_id: budgetId, amount_cents: amountCents, description: desc, date, member_id: memberId, created_at: now }, ...transactions];
+  }
+
+  closeTxForm();
+  render();
+}
+
+async function deleteTransaction() {
+  if (!editingTxId) return;
+  if (!confirm('Delete this transaction?')) return;
+  const id = editingTxId;
+  await db('DELETE FROM app_finances__transactions WHERE id=?', [id]);
+  transactions = transactions.filter(t => t.id !== id);
+  closeTxForm();
+  render();
+}
+
+/* ── Init ──────────────────────────────────────────────────────────────────── */
+async function init() {
+  try {
+    await loadAll();
+  } catch (e) {
+    console.error('Failed to load finances:', e);
+  }
+  render();
+}
+
+init();
+
+window.setTab          = setTab;
+window.selectBudget    = selectBudget;
+window.clearBudgetFilter = clearBudgetFilter;
+window.openBudgetForm  = openBudgetForm;
+window.closeBudgetForm = closeBudgetForm;
+window.saveBudget      = saveBudget;
+window.deleteBudget    = deleteBudget;
+window.pickColor       = pickColor;
+window.openTxForm      = openTxForm;
+window.closeTxForm     = closeTxForm;
+window.saveTransaction = saveTransaction;
+window.deleteTransaction = deleteTransaction;
+</script>
+</body>
+</html>

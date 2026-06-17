@@ -1,0 +1,22 @@
+{
+  "id": "finances",
+  "name": "Finances",
+  "version": "1.0.0",
+  "description": "Household budget tracker — create spending budgets, log transactions, and see how much remains each period.",
+  "entrypoint": "index.html",
+  "runtime": "static",
+  "category": "family",
+  "tags": ["budget", "finance", "spending", "money", "transactions"],
+  "data_access": {
+    "reads": ["family.members"],
+    "writes": []
+  },
+  "permissions": {
+    "default_audience": "adults",
+    "requires_approval": false
+  },
+  "storage": "db",
+  "nav": { "label": "Finances" },
+  "resource_limits": { "max_db_bytes": 52428800 },
+  "icon": "💰"
+}

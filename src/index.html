@@ -60,6 +60,7 @@
 
     .empty { text-align: center; padding: 48px 16px; color: var(--muted); }
     .empty p { margin-bottom: 12px; }
+    .load-error { margin-bottom: 16px; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #991b1b; }
 
     /* Modal */
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -73,7 +74,7 @@
     .modal-left { margin-right: auto; }
 
     .color-row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .color-swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+    .color-swatch { width: 28px; height: 28px; padding: 0; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
     .color-swatch.selected { border-color: var(--text); }
   </style>
 </head>
@@ -82,14 +83,17 @@
   <div class="header">
     <h1>💰 Finances</h1>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-outline" onclick="openBudgetForm()">+ Budget</button>
-      <button class="btn" onclick="openTxForm()">+ Transaction</button>
+      <button class="btn btn-outline" id="newBudgetBtn">+ Budget</button>
+      <button class="btn" id="newTxBtn">+ Transaction</button>
     </div>
   </div>
 
   <div class="tabs">
-    <button class="tab active" id="tabBudgets" onclick="setTab('budgets')">Budgets</button>
-    <button class="tab" id="tabTransactions" onclick="setTab('transactions')">All Transactions</button>
+    <button class="tab active" id="tabBudgets">Budgets</button>
+    <button class="tab" id="tabTransactions">Recent Transactions</button>
+  </div>
+  <div class="load-error" id="loadError" role="alert" hidden>
+    Finances could not be loaded. Please refresh and try again.
   </div>
 
   <div id="budgetView">
@@ -97,7 +101,7 @@
     <div id="txSection" style="display:none">
       <div class="section-header">
         <span class="section-title" id="txSectionTitle">Transactions</span>
-        <button class="btn btn-outline" style="font-size:0.75rem;padding:4px 10px" onclick="clearBudgetFilter()">Show all</button>
+        <button class="btn btn-outline" id="clearBudgetFilterBtn" style="font-size:0.75rem;padding:4px 10px">Show all</button>
       </div>
       <div id="budgetTxList" class="tx-list"></div>
     </div>
@@ -105,20 +109,20 @@
 
   <div id="allTxView" style="display:none">
     <div class="section-header">
-      <span class="section-title">All Transactions</span>
+      <span class="section-title">Recent Transactions</span>
     </div>
     <div id="allTxList" class="tx-list"></div>
   </div>
 </div>
 
 <!-- Budget modal -->
-<div class="overlay" id="budgetOverlay" style="display:none" onclick="if(event.target===this)closeBudgetForm()">
+<div class="overlay" id="budgetOverlay" style="display:none">
   <div class="modal">
     <h2 id="budgetTitle">New Budget</h2>
-    <div class="field"><label>Name *</label><input id="bName" type="text" placeholder="e.g. Groceries" /></div>
+    <div class="field"><label>Name *</label><input id="bName" type="text" maxlength="200" placeholder="e.g. Groceries" /></div>
     <div class="field">
-      <label>Monthly Limit ($) *</label>
-      <input id="bLimit" type="number" min="0" step="0.01" placeholder="500.00" />
+      <label>Spending Limit ($) *</label>
+      <input id="bLimit" type="number" min="0" max="10000000000" step="0.01" placeholder="500.00" />
     </div>
     <div class="field">
       <label>Period</label>
@@ -133,23 +137,23 @@
     </div>
     <div class="modal-actions">
       <div class="modal-left">
-        <button class="btn btn-danger" id="budgetDeleteBtn" onclick="deleteBudget()" style="display:none">Delete</button>
+        <button class="btn btn-danger" id="budgetDeleteBtn" style="display:none">Delete</button>
       </div>
-      <button class="btn btn-outline" onclick="closeBudgetForm()">Cancel</button>
-      <button class="btn" onclick="saveBudget()">Save</button>
+      <button class="btn btn-outline" id="budgetCancelBtn">Cancel</button>
+      <button class="btn" id="budgetSaveBtn">Save</button>
     </div>
   </div>
 </div>
 
 <!-- Transaction modal -->
-<div class="overlay" id="txOverlay" style="display:none" onclick="if(event.target===this)closeTxForm()">
+<div class="overlay" id="txOverlay" style="display:none">
   <div class="modal">
     <h2 id="txTitle">New Transaction</h2>
     <div class="field">
       <label>Amount ($) *</label>
-      <input id="tAmount" type="number" min="0" step="0.01" placeholder="24.99" />
+      <input id="tAmount" type="number" min="0.01" max="10000000000" step="0.01" placeholder="24.99" />
     </div>
-    <div class="field"><label>Description *</label><input id="tDesc" type="text" placeholder="e.g. Weekly grocery run" /></div>
+    <div class="field"><label>Description *</label><input id="tDesc" type="text" maxlength="500" placeholder="e.g. Weekly grocery run" /></div>
     <div class="field"><label>Date *</label><input id="tDate" type="date" /></div>
     <div class="field">
       <label>Budget</label>
@@ -159,25 +163,28 @@
     </div>
     <div class="modal-actions">
       <div class="modal-left">
-        <button class="btn btn-danger" id="txDeleteBtn" onclick="deleteTransaction()" style="display:none">Delete</button>
+        <button class="btn btn-danger" id="txDeleteBtn" style="display:none">Delete</button>
       </div>
-      <button class="btn btn-outline" onclick="closeTxForm()">Cancel</button>
-      <button class="btn" onclick="saveTransaction()">Save</button>
+      <button class="btn btn-outline" id="txCancelBtn">Cancel</button>
+      <button class="btn" id="txSaveBtn">Save</button>
     </div>
   </div>
 </div>
 
 <script type="module">
-import { esc } from '/hub-sdk.js';
+import {
+  COLORS,
+  currentPeriodBounds,
+  dollarsToCents,
+  isValidDateString,
+  normalizeColor,
+} from './logic.js';
 
-const DB      = window.__DB_URL ?? '';
-const CONTEXT = window.__CONTEXT_URL ?? '';
-
-const COLORS = ['#6366f1','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#64748b'];
+const DB = window.__DB_URL ?? '';
 
 let budgets      = [];
 let transactions = [];
-let members      = [];
+let budgetSpent  = new Map();
 let activeTab    = 'budgets';
 let selectedBudgetId = null;
 let editingBudgetId  = null;
@@ -192,36 +199,70 @@ async function db(sql, params = []) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sql, params }),
   });
-  if (!res.ok) throw new Error(`DB error ${res.status}`);
-  return res.json();
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `DB error ${res.status}`);
+  return body;
 }
 
 /* ── Data loading ──────────────────────────────────────────────────────────── */
+function summaryQuery() {
+  const monthly = currentPeriodBounds('monthly');
+  const weekly = currentPeriodBounds('weekly');
+  return {
+    sql: `
+      SELECT b.id AS budget_id, COALESCE(SUM(t.amount_cents), 0) AS spent_cents
+      FROM app_finances__budgets b
+      LEFT JOIN app_finances__transactions t
+        ON t.budget_id = b.id
+       AND (
+         (b.period = 'monthly' AND t.date >= ? AND t.date < ?)
+         OR
+         (b.period = 'weekly' AND t.date >= ? AND t.date < ?)
+       )
+      GROUP BY b.id
+    `,
+    params: [monthly.start, monthly.end, weekly.start, weekly.end],
+  };
+}
+
+function applySummaryRows(rows) {
+  budgetSpent = new Map(rows.map(row => [row.budget_id, Number(row.spent_cents) || 0]));
+}
+
+async function loadBudgetSummaries() {
+  const query = summaryQuery();
+  const result = await db(query.sql, query.params);
+  applySummaryRows(result.rows ?? []);
+}
+
+async function loadRecentTransactions() {
+  const result = await db(
+    'SELECT id, budget_id, amount_cents, description, date FROM app_finances__transactions ORDER BY date DESC, id DESC LIMIT 250',
+  );
+  transactions = result.rows ?? [];
+}
+
 async function loadAll() {
-  const [bRes, tRes, ctx] = await Promise.all([
-    db('SELECT id, name, limit_cents, period, color, created_by, created_at FROM app_finances__budgets ORDER BY name'),
-    db('SELECT id, budget_id, amount_cents, description, date, member_id, created_at FROM app_finances__transactions ORDER BY date DESC, created_at DESC'),
-    fetch(`${CONTEXT}?keys=family.members`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+  const query = summaryQuery();
+  const [bRes, tRes, sRes] = await Promise.all([
+    db('SELECT id, name, limit_cents, period, color FROM app_finances__budgets'),
+    db('SELECT id, budget_id, amount_cents, description, date FROM app_finances__transactions ORDER BY date DESC, id DESC LIMIT 250'),
+    db(query.sql, query.params),
   ]);
-  budgets      = bRes.rows ?? [];
+  budgets      = (bRes.rows ?? []).sort((a, b) => a.name.localeCompare(b.name));
   transactions = tRes.rows ?? [];
-  members      = ctx['family.members'] ?? [];
+  applySummaryRows(sRes.rows ?? []);
 }
 
 /* ── Computed summaries ─────────────────────────────────────────────────────── */
 function budgetSummary(budget) {
-  const txs   = transactions.filter(t => t.budget_id === budget.id);
-  const spent = txs.reduce((s, t) => s + t.amount_cents, 0);
-  const pct   = budget.limit_cents > 0 ? Math.min(spent / budget.limit_cents, 1) : 0;
+  const spent = budgetSpent.get(budget.id) ?? 0;
+  const pct   = budget.limit_cents > 0 ? Math.min(spent / budget.limit_cents, 1) : (spent > 0 ? 1 : 0);
   return { spent, remaining: budget.limit_cents - spent, pct };
 }
 
 function fmtMoney(cents) {
   return '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function memberName(id) {
-  return members.find(m => m.id === id)?.name ?? id ?? '';
 }
 
 function budgetName(id) {
@@ -231,36 +272,75 @@ function budgetName(id) {
 /* ── Rendering ─────────────────────────────────────────────────────────────── */
 function renderBudgets() {
   const grid = document.getElementById('budgetGrid');
+  grid.replaceChildren();
   if (!budgets.length) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><p>No budgets yet.</p><button class="btn" onclick="openBudgetForm()">Create your first budget</button></div>`;
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.style.gridColumn = '1 / -1';
+    const message = document.createElement('p');
+    message.textContent = 'No budgets yet.';
+    const button = document.createElement('button');
+    button.className = 'btn';
+    button.textContent = 'Create your first budget';
+    button.addEventListener('click', () => openBudgetForm());
+    empty.append(message, button);
+    grid.append(empty);
     hideTxSection();
     return;
   }
 
-  grid.innerHTML = budgets.map(b => {
+  for (const b of budgets) {
     const { spent, remaining, pct } = budgetSummary(b);
     const over  = spent > b.limit_cents;
-    const color = b.color || COLORS[0];
+    const color = normalizeColor(b.color);
     const sel   = selectedBudgetId === b.id;
-    return `
-      <div class="budget-card ${sel ? 'selected' : ''}" onclick="selectBudget('${b.id}')">
-        <div class="budget-name">
-          <span class="budget-dot" style="background:${color}"></span>
-          ${esc(b.name)}
-        </div>
-        <div class="budget-period">${b.period}</div>
-        <div class="progress-bar">
-          <div class="progress-fill" style="width:${(pct*100).toFixed(1)}%;background:${over?'#ef4444':color}"></div>
-        </div>
-        <div class="budget-amounts">
-          <span class="spent ${over?'over-budget':''}">${fmtMoney(spent)} spent</span>
-          <span class="${over?'over-budget':''}">
-            ${over ? fmtMoney(Math.abs(remaining))+' over' : fmtMoney(remaining)+' left'}
-          </span>
-        </div>
-      </div>
-    `;
-  }).join('');
+
+    const card = document.createElement('div');
+    card.className = `budget-card${sel ? ' selected' : ''}`;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.addEventListener('click', () => selectBudget(b.id));
+    card.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectBudget(b.id);
+      }
+    });
+
+    const name = document.createElement('div');
+    name.className = 'budget-name';
+    const dot = document.createElement('span');
+    dot.className = 'budget-dot';
+    dot.style.backgroundColor = color;
+    name.append(dot, document.createTextNode(b.name));
+
+    const period = document.createElement('div');
+    period.className = 'budget-period';
+    period.textContent = b.period === 'weekly' ? 'Weekly' : 'Monthly';
+
+    const progress = document.createElement('div');
+    progress.className = 'progress-bar';
+    const fill = document.createElement('div');
+    fill.className = 'progress-fill';
+    fill.style.width = `${(pct * 100).toFixed(1)}%`;
+    fill.style.backgroundColor = over ? '#ef4444' : color;
+    progress.append(fill);
+
+    const amounts = document.createElement('div');
+    amounts.className = 'budget-amounts';
+    const spentText = document.createElement('span');
+    spentText.className = `spent${over ? ' over-budget' : ''}`;
+    spentText.textContent = `${fmtMoney(spent)} spent`;
+    const remainingText = document.createElement('span');
+    if (over) remainingText.className = 'over-budget';
+    remainingText.textContent = over
+      ? `${fmtMoney(Math.abs(remaining))} over`
+      : `${fmtMoney(remaining)} left`;
+    amounts.append(spentText, remainingText);
+
+    card.append(name, period, progress, amounts);
+    grid.append(card);
+  }
 
   if (selectedBudgetId) renderBudgetTransactions();
   else hideTxSection();
@@ -286,7 +366,7 @@ function renderBudgetTransactions() {
   if (!budget) { hideTxSection(); return; }
 
   section.style.display = '';
-  document.getElementById('txSectionTitle').textContent = `${budget.name} — Transactions`;
+  document.getElementById('txSectionTitle').textContent = `${budget.name} — Recent Transactions`;
   const txs = transactions.filter(t => t.budget_id === selectedBudgetId);
   renderTxList('budgetTxList', txs);
 }
@@ -297,29 +377,49 @@ function renderAllTransactions() {
 
 function renderTxList(containerId, txs) {
   const el = document.getElementById(containerId);
+  el.replaceChildren();
   if (!txs.length) {
-    el.innerHTML = `<div class="empty"><p>No transactions yet.</p></div>`;
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    const message = document.createElement('p');
+    message.textContent = 'No transactions yet.';
+    empty.append(message);
+    el.append(empty);
     return;
   }
-  el.innerHTML = txs.map(t => `
-    <div class="tx-item" onclick="openTxForm('${t.id}')">
-      <div class="tx-amount">${fmtMoney(t.amount_cents)}</div>
-      <div class="tx-info">
-        <div class="tx-desc">${esc(t.description)}</div>
-        <div class="tx-meta">
-          ${t.date}
-          ${t.budget_id ? `&nbsp;·&nbsp;<span class="budget-badge">${esc(budgetName(t.budget_id))}</span>` : ''}
-          ${t.member_id ? `&nbsp;·&nbsp;${esc(memberName(t.member_id))}` : ''}
-        </div>
-      </div>
-    </div>
-  `).join('');
+  for (const t of txs) {
+    const item = document.createElement('div');
+    item.className = 'tx-item';
+    item.addEventListener('click', () => openTxForm(t.id));
+
+    const amount = document.createElement('div');
+    amount.className = 'tx-amount';
+    amount.textContent = fmtMoney(t.amount_cents);
+
+    const info = document.createElement('div');
+    info.className = 'tx-info';
+    const description = document.createElement('div');
+    description.className = 'tx-desc';
+    description.textContent = t.description;
+    const meta = document.createElement('div');
+    meta.className = 'tx-meta';
+    meta.append(document.createTextNode(t.date));
+    if (t.budget_id) {
+      meta.append(document.createTextNode(' · '));
+      const badge = document.createElement('span');
+      badge.className = 'budget-badge';
+      badge.textContent = budgetName(t.budget_id);
+      meta.append(badge);
+    }
+    info.append(description, meta);
+    item.append(amount, info);
+    el.append(item);
+  }
 }
 
 function render() {
   if (activeTab === 'budgets') {
     renderBudgets();
-    if (selectedBudgetId) renderBudgetTransactions();
   } else {
     renderAllTransactions();
   }
@@ -337,12 +437,20 @@ function setTab(tab) {
 
 /* ── Budget form ───────────────────────────────────────────────────────────── */
 function renderColorPicker() {
-  document.getElementById('colorRow').innerHTML = COLORS.map(c =>
-    `<div class="color-swatch ${selectedColor===c?'selected':''}" style="background:${c}" onclick="pickColor('${c}')"></div>`
-  ).join('');
+  const row = document.getElementById('colorRow');
+  row.replaceChildren();
+  for (const color of COLORS) {
+    const swatch = document.createElement('button');
+    swatch.type = 'button';
+    swatch.className = `color-swatch${selectedColor === color ? ' selected' : ''}`;
+    swatch.style.backgroundColor = color;
+    swatch.setAttribute('aria-label', `Use color ${color}`);
+    swatch.addEventListener('click', () => pickColor(color));
+    row.append(swatch);
+  }
 }
 
-function pickColor(c) { selectedColor = c; renderColorPicker(); }
+function pickColor(c) { selectedColor = normalizeColor(c); renderColorPicker(); }
 
 function openBudgetForm(id) {
   editingBudgetId = id || null;
@@ -351,7 +459,7 @@ function openBudgetForm(id) {
   document.getElementById('bName').value   = b?.name ?? '';
   document.getElementById('bLimit').value  = b ? (b.limit_cents / 100).toFixed(2) : '';
   document.getElementById('bPeriod').value = b?.period ?? 'monthly';
-  selectedColor = b?.color || COLORS[0];
+  selectedColor = normalizeColor(b?.color);
   renderColorPicker();
   document.getElementById('budgetDeleteBtn').style.display = b ? '' : 'none';
   document.getElementById('budgetOverlay').style.display = 'flex';
@@ -365,40 +473,62 @@ function closeBudgetForm() {
 
 async function saveBudget() {
   const name  = document.getElementById('bName').value.trim();
-  const limit = parseFloat(document.getElementById('bLimit').value);
-  if (!name || isNaN(limit) || limit < 0) { alert('Name and a valid limit are required.'); return; }
-  const limitCents = Math.round(limit * 100);
+  const limitCents = dollarsToCents(document.getElementById('bLimit').value, { allowZero: true });
+  if (!name || name.length > 200 || limitCents === null) {
+    alert('Enter a name and a spending limit between $0 and $10 billion.');
+    return;
+  }
   const period     = document.getElementById('bPeriod').value;
-  const now        = new Date().toISOString();
-
-  if (editingBudgetId) {
-    await db('UPDATE app_finances__budgets SET name=?, limit_cents=?, period=?, color=? WHERE id=?',
-      [name, limitCents, period, selectedColor, editingBudgetId]);
-    budgets = budgets.map(b => b.id === editingBudgetId
-      ? { ...b, name, limit_cents: limitCents, period, color: selectedColor } : b);
-  } else {
-    const id = crypto.randomUUID();
-    const createdBy = window.__CURRENT_MEMBER?.id ?? 'admin';
-    await db('INSERT INTO app_finances__budgets (id, name, limit_cents, period, color, created_by, created_at) VALUES (?,?,?,?,?,?,?)',
-      [id, name, limitCents, period, selectedColor, createdBy, now]);
-    budgets = [...budgets, { id, name, limit_cents: limitCents, period, color: selectedColor, created_by: createdBy, created_at: now }];
+  if (!['monthly', 'weekly'].includes(period)) {
+    alert('Choose a valid budget period.');
+    return;
   }
 
-  closeBudgetForm();
-  render();
+  try {
+    if (editingBudgetId) {
+      await db('UPDATE app_finances__budgets SET name=?, limit_cents=?, period=?, color=? WHERE id=?',
+        [name, limitCents, period, selectedColor, editingBudgetId]);
+      budgets = budgets.map(b => b.id === editingBudgetId
+        ? { ...b, name, limit_cents: limitCents, period, color: selectedColor } : b);
+    } else {
+      const id = crypto.randomUUID();
+      await db('INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES (?,?,?,?,?)',
+        [id, name, limitCents, period, selectedColor]);
+      budgets = [...budgets, {
+        id,
+        name,
+        limit_cents: limitCents,
+        period,
+        color: selectedColor,
+      }];
+    }
+
+    budgets.sort((a, b) => a.name.localeCompare(b.name));
+    await loadBudgetSummaries();
+    closeBudgetForm();
+    render();
+  } catch (error) {
+    console.error('Failed to save budget:', error);
+    alert('The budget could not be saved. Please try again.');
+  }
 }
 
 async function deleteBudget() {
   if (!editingBudgetId) return;
   if (!confirm('Delete this budget? Its transactions will become uncategorized.')) return;
   const id = editingBudgetId;
-  await db('UPDATE app_finances__transactions SET budget_id=NULL WHERE budget_id=?', [id]);
-  await db('DELETE FROM app_finances__budgets WHERE id=?', [id]);
-  budgets      = budgets.filter(b => b.id !== id);
-  transactions = transactions.map(t => t.budget_id === id ? { ...t, budget_id: null } : t);
-  if (selectedBudgetId === id) selectedBudgetId = null;
-  closeBudgetForm();
-  render();
+  try {
+    await db('DELETE FROM app_finances__budgets WHERE id=?', [id]);
+    budgets      = budgets.filter(b => b.id !== id);
+    budgetSpent.delete(id);
+    transactions = transactions.map(t => t.budget_id === id ? { ...t, budget_id: null } : t);
+    if (selectedBudgetId === id) selectedBudgetId = null;
+    closeBudgetForm();
+    render();
+  } catch (error) {
+    console.error('Failed to delete budget:', error);
+    alert('The budget could not be deleted. Please try again.');
+  }
 }
 
 /* ── Transaction form ──────────────────────────────────────────────────────── */
@@ -411,8 +541,10 @@ function openTxForm(id) {
   document.getElementById('tDate').value   = t?.date ?? new Date().toISOString().slice(0, 10);
 
   const sel = document.getElementById('tBudget');
-  sel.innerHTML = '<option value="">— Uncategorized —</option>' +
-    budgets.map(b => `<option value="${b.id}" ${t?.budget_id===b.id?'selected':''}>${esc(b.name)}</option>`).join('');
+  sel.replaceChildren(new Option('— Uncategorized —', ''));
+  for (const budget of budgets) {
+    sel.add(new Option(budget.name, budget.id, false, t?.budget_id === budget.id));
+  }
   if (!t && selectedBudgetId) sel.value = selectedBudgetId;
 
   document.getElementById('txDeleteBtn').style.display = t ? '' : 'none';
@@ -426,39 +558,51 @@ function closeTxForm() {
 }
 
 async function saveTransaction() {
-  const amount = parseFloat(document.getElementById('tAmount').value);
+  const amountCents = dollarsToCents(document.getElementById('tAmount').value);
   const desc   = document.getElementById('tDesc').value.trim();
   const date   = document.getElementById('tDate').value;
-  if (isNaN(amount) || amount < 0 || !desc || !date) { alert('Amount, description, and date are required.'); return; }
-  const amountCents = Math.round(amount * 100);
+  if (amountCents === null || !desc || desc.length > 500 || !isValidDateString(date)) {
+    alert('Enter an amount greater than $0, a description, and a valid date.');
+    return;
+  }
   const budgetId    = document.getElementById('tBudget').value || null;
-  const now         = new Date().toISOString();
-
-  if (editingTxId) {
-    await db('UPDATE app_finances__transactions SET amount_cents=?, description=?, date=?, budget_id=? WHERE id=?',
-      [amountCents, desc, date, budgetId, editingTxId]);
-    transactions = transactions.map(t => t.id === editingTxId
-      ? { ...t, amount_cents: amountCents, description: desc, date, budget_id: budgetId } : t);
-  } else {
-    const id       = crypto.randomUUID();
-    const memberId = window.__CURRENT_MEMBER?.id ?? null;
-    await db('INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date, member_id, created_at) VALUES (?,?,?,?,?,?,?)',
-      [id, budgetId, amountCents, desc, date, memberId, now]);
-    transactions = [{ id, budget_id: budgetId, amount_cents: amountCents, description: desc, date, member_id: memberId, created_at: now }, ...transactions];
+  if (budgetId && !budgets.some(budget => budget.id === budgetId)) {
+    alert('Choose a valid budget.');
+    return;
   }
 
-  closeTxForm();
-  render();
+  try {
+    if (editingTxId) {
+      await db('UPDATE app_finances__transactions SET amount_cents=?, description=?, date=?, budget_id=? WHERE id=?',
+        [amountCents, desc, date, budgetId, editingTxId]);
+    } else {
+      const id = crypto.randomUUID();
+      await db('INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?,?,?,?,?)',
+        [id, budgetId, amountCents, desc, date]);
+    }
+
+    await Promise.all([loadRecentTransactions(), loadBudgetSummaries()]);
+    closeTxForm();
+    render();
+  } catch (error) {
+    console.error('Failed to save transaction:', error);
+    alert('The transaction could not be saved. Please try again.');
+  }
 }
 
 async function deleteTransaction() {
   if (!editingTxId) return;
   if (!confirm('Delete this transaction?')) return;
   const id = editingTxId;
-  await db('DELETE FROM app_finances__transactions WHERE id=?', [id]);
-  transactions = transactions.filter(t => t.id !== id);
-  closeTxForm();
-  render();
+  try {
+    await db('DELETE FROM app_finances__transactions WHERE id=?', [id]);
+    await Promise.all([loadRecentTransactions(), loadBudgetSummaries()]);
+    closeTxForm();
+    render();
+  } catch (error) {
+    console.error('Failed to delete transaction:', error);
+    alert('The transaction could not be deleted. Please try again.');
+  }
 }
 
 /* ── Init ──────────────────────────────────────────────────────────────────── */
@@ -467,24 +611,34 @@ async function init() {
     await loadAll();
   } catch (e) {
     console.error('Failed to load finances:', e);
+    document.getElementById('loadError').hidden = false;
+    return;
   }
   render();
 }
 
-init();
+function setupEventHandlers() {
+  document.getElementById('newBudgetBtn').addEventListener('click', () => openBudgetForm());
+  document.getElementById('newTxBtn').addEventListener('click', () => openTxForm());
+  document.getElementById('tabBudgets').addEventListener('click', () => setTab('budgets'));
+  document.getElementById('tabTransactions').addEventListener('click', () => setTab('transactions'));
+  document.getElementById('clearBudgetFilterBtn').addEventListener('click', clearBudgetFilter);
+  document.getElementById('budgetDeleteBtn').addEventListener('click', deleteBudget);
+  document.getElementById('budgetCancelBtn').addEventListener('click', closeBudgetForm);
+  document.getElementById('budgetSaveBtn').addEventListener('click', saveBudget);
+  document.getElementById('txDeleteBtn').addEventListener('click', deleteTransaction);
+  document.getElementById('txCancelBtn').addEventListener('click', closeTxForm);
+  document.getElementById('txSaveBtn').addEventListener('click', saveTransaction);
+  document.getElementById('budgetOverlay').addEventListener('click', event => {
+    if (event.target === event.currentTarget) closeBudgetForm();
+  });
+  document.getElementById('txOverlay').addEventListener('click', event => {
+    if (event.target === event.currentTarget) closeTxForm();
+  });
+}
 
-window.setTab          = setTab;
-window.selectBudget    = selectBudget;
-window.clearBudgetFilter = clearBudgetFilter;
-window.openBudgetForm  = openBudgetForm;
-window.closeBudgetForm = closeBudgetForm;
-window.saveBudget      = saveBudget;
-window.deleteBudget    = deleteBudget;
-window.pickColor       = pickColor;
-window.openTxForm      = openTxForm;
-window.closeTxForm     = closeTxForm;
-window.saveTransaction = saveTransaction;
-window.deleteTransaction = deleteTransaction;
+setupEventHandlers();
+init();
 </script>
 </body>
 </html>

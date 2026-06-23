@@ -8,7 +8,7 @@
   "category": "family",
   "tags": ["budget", "finance", "spending", "money", "transactions"],
   "data_access": {
-    "reads": ["family.members"],
+    "reads": [],
     "writes": []
   },
   "permissions": {
@@ -16,6 +16,15 @@
     "requires_approval": false
   },
   "storage": "db",
+  "row_policies": {
+    "budgets": {
+      "kind": "adult_only"
+    },
+    "transactions": {
+      "kind": "adult_only"
+    }
+  },
+  "db_plaintext_columns": ["date", "period", "color"],
   "nav": { "label": "Finances" },
   "resource_limits": { "max_db_bytes": 52428800 },
   "icon": "💰"

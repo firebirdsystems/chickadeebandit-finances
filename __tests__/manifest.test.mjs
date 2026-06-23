@@ -38,6 +38,22 @@ describe("manifest.json", () => {
     expect(Array.isArray(manifest.data_access.reads)).toBe(true);
     expect(Array.isArray(manifest.data_access.writes)).toBe(true);
   });
+
+  it("restricts every finance table to adults", () => {
+    expect(manifest.row_policies).toEqual({
+      budgets: { kind: "adult_only" },
+      transactions: { kind: "adult_only" },
+    });
+  });
+
+  it("keeps SQL-filtered period and date columns plaintext", () => {
+    expect(manifest.db_plaintext_columns).toEqual(expect.arrayContaining(["date", "period", "color"]));
+  });
+
+  it("does not request unrelated household context", () => {
+    expect(manifest.data_access.reads).toEqual([]);
+    expect(manifest.data_access.writes).toEqual([]);
+  });
 });
 
 // ── ai_access SQL file validation ─────────────────────────────────────────────

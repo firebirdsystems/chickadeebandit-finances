@@ -179,6 +179,7 @@ import {
   isValidDateString,
   normalizeColor,
 } from './logic.js';
+import { hubAlert } from '/hub-sdk.js';
 
 const DB = window.__DB_URL ?? '';
 
@@ -475,12 +476,12 @@ async function saveBudget() {
   const name  = document.getElementById('bName').value.trim();
   const limitCents = dollarsToCents(document.getElementById('bLimit').value, { allowZero: true });
   if (!name || name.length > 200 || limitCents === null) {
-    alert('Enter a name and a spending limit between $0 and $10 billion.');
+    hubAlert('Enter a name and a spending limit between $0 and $10 billion.');
     return;
   }
   const period     = document.getElementById('bPeriod').value;
   if (!['monthly', 'weekly'].includes(period)) {
-    alert('Choose a valid budget period.');
+    hubAlert('Choose a valid budget period.');
     return;
   }
 
@@ -509,7 +510,7 @@ async function saveBudget() {
     render();
   } catch (error) {
     console.error('Failed to save budget:', error);
-    alert('The budget could not be saved. Please try again.');
+    hubAlert('The budget could not be saved. Please try again.');
   }
 }
 
@@ -527,7 +528,7 @@ async function deleteBudget() {
     render();
   } catch (error) {
     console.error('Failed to delete budget:', error);
-    alert('The budget could not be deleted. Please try again.');
+    hubAlert('The budget could not be deleted. Please try again.');
   }
 }
 
@@ -562,12 +563,12 @@ async function saveTransaction() {
   const desc   = document.getElementById('tDesc').value.trim();
   const date   = document.getElementById('tDate').value;
   if (amountCents === null || !desc || desc.length > 500 || !isValidDateString(date)) {
-    alert('Enter an amount greater than $0, a description, and a valid date.');
+    hubAlert('Enter an amount greater than $0, a description, and a valid date.');
     return;
   }
   const budgetId    = document.getElementById('tBudget').value || null;
   if (budgetId && !budgets.some(budget => budget.id === budgetId)) {
-    alert('Choose a valid budget.');
+    hubAlert('Choose a valid budget.');
     return;
   }
 
@@ -586,7 +587,7 @@ async function saveTransaction() {
     render();
   } catch (error) {
     console.error('Failed to save transaction:', error);
-    alert('The transaction could not be saved. Please try again.');
+    hubAlert('The transaction could not be saved. Please try again.');
   }
 }
 
@@ -601,7 +602,7 @@ async function deleteTransaction() {
     render();
   } catch (error) {
     console.error('Failed to delete transaction:', error);
-    alert('The transaction could not be deleted. Please try again.');
+    hubAlert('The transaction could not be deleted. Please try again.');
   }
 }
 

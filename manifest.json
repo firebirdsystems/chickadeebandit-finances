@@ -2,11 +2,17 @@
   "id": "finances",
   "name": "Finances",
   "version": "1.0.0",
-  "description": "Household budget tracker — create spending budgets, log transactions, and see how much remains each period.",
+  "description": "Household budget tracker \u2014 create spending budgets, log transactions, and see how much remains each period.",
   "entrypoint": "index.html",
   "runtime": "static",
   "category": "family",
-  "tags": ["budget", "finance", "spending", "money", "transactions"],
+  "tags": [
+    "budget",
+    "finance",
+    "spending",
+    "money",
+    "transactions"
+  ],
   "data_access": {
     "reads": [],
     "writes": []
@@ -18,14 +24,24 @@
   "storage": "db",
   "row_policies": {
     "budgets": {
-      "kind": "adult_only"
+      "kind": "adult_only",
+      "audit_writes": true
     },
     "transactions": {
-      "kind": "adult_only"
+      "kind": "adult_only",
+      "audit_writes": true
     }
   },
-  "db_plaintext_columns": ["date", "period", "color"],
-  "nav": { "label": "Finances" },
-  "resource_limits": { "max_db_bytes": 52428800 },
-  "icon": "💰"
+  "db_plaintext_columns": [
+    "date",
+    "period",
+    "color"
+  ],
+  "nav": {
+    "label": "Finances"
+  },
+  "resource_limits": {
+    "max_db_bytes": 52428800
+  },
+  "icon": "\ud83d\udcb0"
 }

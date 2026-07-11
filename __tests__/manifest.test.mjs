@@ -39,10 +39,10 @@ describe("manifest.json", () => {
     expect(Array.isArray(manifest.data_access.writes)).toBe(true);
   });
 
-  it("restricts every finance table to adults", () => {
+  it("restricts every finance table to adults and audits all writes", () => {
     expect(manifest.row_policies).toEqual({
-      budgets: { kind: "adult_only" },
-      transactions: { kind: "adult_only" },
+      budgets: { kind: "adult_only", audit_writes: true },
+      transactions: { kind: "adult_only", audit_writes: true },
     });
   });
 

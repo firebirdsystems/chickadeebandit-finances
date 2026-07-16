@@ -1,7 +1,7 @@
 {
   "id": "finances",
   "name": "Finances",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Household budget tracker \u2014 create spending budgets, log transactions, and see how much remains each period.",
   "entrypoint": "index.html",
   "runtime": "static",
@@ -28,6 +28,10 @@
       "audit_writes": true
     },
     "transactions": {
+      "kind": "adult_only",
+      "audit_writes": true
+    },
+    "receipts": {
       "kind": "adult_only",
       "audit_writes": true
     }

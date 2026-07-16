@@ -91,6 +91,7 @@
   <div class="tabs">
     <button class="tab active" id="tabBudgets">Budgets</button>
     <button class="tab" id="tabTransactions">Recent Transactions</button>
+    <button class="tab" id="tabReceipts">Receipts</button>
   </div>
   <div class="load-error" id="loadError" role="alert" hidden>
     Finances could not be loaded. Please refresh and try again.
@@ -112,6 +113,13 @@
       <span class="section-title">Recent Transactions</span>
     </div>
     <div id="allTxList" class="tx-list"></div>
+  </div>
+
+  <div id="receiptsView" style="display:none">
+    <div class="section-header">
+      <span class="section-title">Forwarded Receipts</span>
+    </div>
+    <div id="receiptsList" class="tx-list"></div>
   </div>
 </div>
 
@@ -182,9 +190,12 @@ import {
 import { hubAlert } from '/hub-sdk.js';
 
 const DB = window.__DB_URL ?? '';
+const FILES = window.__FILES_URL ?? '';
 
 let budgets      = [];
 let transactions = [];
+let receipts     = [];
+let receiptsLoaded = false;
 let budgetSpent  = new Map();
 let activeTab    = 'budgets';
 let selectedBudgetId = null;
@@ -418,9 +429,60 @@ function renderTxList(containerId, txs) {
   }
 }
 
+/* ── Receipts (forwarded via email-in "+receipts") ─────────────────────────── */
+async function loadReceipts() {
+  const res = await db(
+    'SELECT id, file_id, filename, note, received_at FROM app_finances__receipts ORDER BY received_at DESC, id DESC LIMIT 250',
+  );
+  receipts = res.rows ?? [];
+  receiptsLoaded = true;
+}
+
+function renderReceipts() {
+  const el = document.getElementById('receiptsList');
+  el.replaceChildren();
+  if (!receipts.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    const message = document.createElement('p');
+    message.textContent = 'No receipts yet. Forward a receipt to your household inbox address with a +receipts tag.';
+    empty.append(message);
+    el.append(empty);
+    return;
+  }
+  for (const r of receipts) {
+    const item = document.createElement('div');
+    item.className = 'tx-item';
+
+    const info = document.createElement('div');
+    info.className = 'tx-info';
+    const desc = document.createElement('div');
+    desc.className = 'tx-desc';
+    desc.textContent = r.note || r.filename;
+    const meta = document.createElement('div');
+    meta.className = 'tx-meta';
+    meta.textContent = (r.received_at || '').slice(0, 10);
+    info.append(desc, meta);
+
+    item.append(info);
+    if (FILES && r.file_id) {
+      const link = document.createElement('a');
+      link.className = 'budget-badge';
+      link.textContent = 'Download';
+      link.href = `${FILES}/${r.file_id}`;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      item.append(link);
+    }
+    el.append(item);
+  }
+}
+
 function render() {
   if (activeTab === 'budgets') {
     renderBudgets();
+  } else if (activeTab === 'receipts') {
+    renderReceipts();
   } else {
     renderAllTransactions();
   }
@@ -431,8 +493,13 @@ function setTab(tab) {
   activeTab = tab;
   document.getElementById('tabBudgets').classList.toggle('active', tab === 'budgets');
   document.getElementById('tabTransactions').classList.toggle('active', tab === 'transactions');
+  document.getElementById('tabReceipts').classList.toggle('active', tab === 'receipts');
   document.getElementById('budgetView').style.display    = tab === 'budgets' ? '' : 'none';
   document.getElementById('allTxView').style.display     = tab === 'transactions' ? '' : 'none';
+  document.getElementById('receiptsView').style.display  = tab === 'receipts' ? '' : 'none';
+  if (tab === 'receipts' && !receiptsLoaded) {
+    loadReceipts().then(render).catch(() => {});
+  }
   render();
 }
 
@@ -623,6 +690,7 @@ function setupEventHandlers() {
   document.getElementById('newTxBtn').addEventListener('click', () => openTxForm());
   document.getElementById('tabBudgets').addEventListener('click', () => setTab('budgets'));
   document.getElementById('tabTransactions').addEventListener('click', () => setTab('transactions'));
+  document.getElementById('tabReceipts').addEventListener('click', () => setTab('receipts'));
   document.getElementById('clearBudgetFilterBtn').addEventListener('click', clearBudgetFilter);
   document.getElementById('budgetDeleteBtn').addEventListener('click', deleteBudget);
   document.getElementById('budgetCancelBtn').addEventListener('click', closeBudgetForm);

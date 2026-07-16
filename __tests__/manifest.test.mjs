@@ -43,6 +43,7 @@ describe("manifest.json", () => {
     expect(manifest.row_policies).toEqual({
       budgets: { kind: "adult_only", audit_writes: true },
       transactions: { kind: "adult_only", audit_writes: true },
+      receipts: { kind: "adult_only", audit_writes: true },
     });
   });
 

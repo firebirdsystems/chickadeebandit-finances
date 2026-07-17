@@ -1,8 +1,8 @@
 {
   "id": "finances",
   "name": "Finances",
-  "version": "1.1.0",
-  "description": "Household budget tracker \u2014 create spending budgets, log transactions, and see how much remains each period.",
+  "version": "1.1.1",
+  "description": "Household budget tracker — create spending budgets, log transactions, and see how much remains each period.",
   "entrypoint": "index.html",
   "runtime": "static",
   "category": "family",
@@ -47,5 +47,6 @@
   "resource_limits": {
     "max_db_bytes": 52428800
   },
-  "icon": "\ud83d\udcb0"
+  "icon": "💰",
+  "kiosk": "never"
 }

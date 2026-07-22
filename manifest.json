@@ -1,5 +1,6 @@
 {
   "id": "finances",
+  "contexts": ["household", "shared_space"],
   "name": "Finances",
   "version": "1.1.1",
   "description": "Household budget tracker — create spending budgets, log transactions, and see how much remains each period.",

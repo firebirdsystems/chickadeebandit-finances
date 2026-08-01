@@ -53,3 +53,13 @@ export function isValidDateString(value) {
     && date.getUTCMonth() === month - 1
     && date.getUTCDate() === day;
 }
+
+/**
+ * Fields the in-app search matches against (see hub-sdk `searchMatch`).
+ * The budget a transaction sits under counts as well as its own
+ * description, so "groceries" finds the line items filed under that
+ * budget as well as the ones described that way.
+ */
+export function searchableFields(transaction, budgetName = "") {
+  return [transaction.description, budgetName];
+}

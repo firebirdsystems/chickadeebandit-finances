@@ -5,7 +5,7 @@ import {
   currentPeriodBounds,
   dollarsToCents,
   isValidDateString,
-  normalizeColor,
+  normalizeColor, searchableFields,
 } from "../src/logic.js";
 
 describe("money conversion", () => {
@@ -50,5 +50,13 @@ describe("stored value validation", () => {
   it("falls back to the default color", () => {
     expect(normalizeColor(COLORS[2])).toBe(COLORS[2]);
     expect(normalizeColor('red"><img src=x onerror=alert(1)>')).toBe(COLORS[0]);
+  });
+});
+
+describe("searchableFields", () => {
+  it("matches on the budget name as well as the description", () => {
+    const fields = searchableFields({ description: "Tesco run" }, "Groceries");
+    expect(fields).toContain("Tesco run");
+    expect(fields).toContain("Groceries");
   });
 });

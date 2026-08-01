@@ -76,6 +76,13 @@
     .color-row { display: flex; gap: 8px; flex-wrap: wrap; }
     .color-swatch { width: 28px; height: 28px; padding: 0; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
     .color-swatch.selected { border-color: var(--text); }
+    .search-row { margin-bottom: 12px; }
+    .search-input {
+      width: 100%; border: 1.5px solid var(--border-mid, var(--border, #d1d5db));
+      border-radius: 8px; padding: 9px 11px; font: inherit;
+      background: var(--surface, var(--card, #fff)); color: var(--text, inherit);
+    }
+    .search-input:focus { outline: none; border-color: var(--accent, #6366f1); }
   </style>
 </head>
 <body>
@@ -111,6 +118,9 @@
   <div id="allTxView" style="display:none">
     <div class="section-header">
       <span class="section-title">Recent Transactions</span>
+    </div>
+    <div class="search-row" id="search-row" style="display:none">
+      <input id="search" class="search-input" type="search" placeholder="Search transactions…" aria-label="Search transactions" />
     </div>
     <div id="allTxList" class="tx-list"></div>
   </div>
@@ -185,15 +195,16 @@ import {
   currentPeriodBounds,
   dollarsToCents,
   isValidDateString,
-  normalizeColor,
+  normalizeColor, searchableFields,
 } from './logic.js';
-import { hubAlert } from '/hub-sdk.js';
+import { hubAlert, searchMatch } from '/hub-sdk.js';
 
 const DB = window.__DB_URL ?? '';
 const FILES = window.__FILES_URL ?? '';
 
 let budgets      = [];
 let transactions = [];
+let searchQ = "";       // in-app search (see logic.js searchableFields)
 let receipts     = [];
 let receiptsLoaded = false;
 let budgetSpent  = new Map();
@@ -384,17 +395,35 @@ function renderBudgetTransactions() {
 }
 
 function renderAllTransactions() {
-  renderTxList('allTxList', transactions);
+  // Only worth offering the box once there is a ledger to search.
+  const searchRow = document.getElementById('search-row');
+  if (searchRow) searchRow.style.display = transactions.length ? '' : 'none';
+
+  const shown = searchQ
+    ? transactions.filter(t => searchMatch(searchQ, searchableFields(t, budgetNameFor(t.budget_id))))
+    : transactions;
+  renderTxList('allTxList', shown, !!searchQ);
 }
 
-function renderTxList(containerId, txs) {
+function budgetNameFor(budgetId) {
+  return budgets.find(b => b.id === budgetId)?.name ?? "";
+}
+
+// Only the ledger is redrawn on each keystroke, so the box keeps focus.
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'search') return;
+  searchQ = e.target.value;
+  renderAllTransactions();
+});
+
+function renderTxList(containerId, txs, filtered = false) {
   const el = document.getElementById(containerId);
   el.replaceChildren();
   if (!txs.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
     const message = document.createElement('p');
-    message.textContent = 'No transactions yet.';
+    message.textContent = filtered ? 'No transactions match that search.' : 'No transactions yet.';
     empty.append(message);
     el.append(empty);
     return;

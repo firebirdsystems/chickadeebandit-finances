@@ -201,6 +201,23 @@ import { hubAlert, searchMatch } from '/hub-sdk.js';
 
 const DB = window.__DB_URL ?? '';
 const FILES = window.__FILES_URL ?? '';
+const EVENTS = window.__EVENTS_URL ?? '';
+
+// The payload carries the amount and date but never the description: the
+// description is encrypted at rest and is the free-text part a member is least
+// likely to expect on the household-wide bus.
+async function publishEvent(type, subjectId, payload = {}) {
+  if (!EVENTS) return;
+  try {
+    await fetch(EVENTS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, subject_id: subjectId, payload }),
+    });
+  } catch {
+    // A failed publish must not lose the transaction the member just recorded.
+  }
+}
 
 let budgets      = [];
 let transactions = [];
@@ -676,6 +693,11 @@ async function saveTransaction() {
       const id = crypto.randomUUID();
       await db('INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?,?,?,?,?)',
         [id, budgetId, amountCents, desc, date]);
+      await publishEvent('finance.transaction_added', id, {
+        amount_cents: amountCents,
+        budget_id: budgetId,
+        date,
+      });
     }
 
     await Promise.all([loadRecentTransactions(), loadBudgetSummaries()]);

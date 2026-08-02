@@ -42,8 +42,59 @@
     "period",
     "color"
   ],
+  "automation_actions": {
+    "record_transaction": {
+      "title": "Record a transaction",
+      "description": "Book an expense when another app's event fires - a reservation paid for, a maintenance job closed out, a subscription renewed.",
+      "params": {
+        "amount_cents": {
+          "type": "integer",
+          "label": "Amount in cents",
+          "required": true
+        },
+        "description": {
+          "type": "text",
+          "label": "Description",
+          "required": true
+        },
+        "date": {
+          "type": "text",
+          "label": "Date (YYYY-MM-DD, usually mapped from the triggering event)",
+          "required": true
+        }
+      },
+      "dedupe": {
+        "table": "transactions",
+        "column": "source_event_id"
+      },
+      "steps": [
+        {
+          "op": "insert",
+          "table": "transactions",
+          "values": {
+            "id": "$uuid",
+            "amount_cents": ":amount_cents",
+            "description": ":description",
+            "date": ":date",
+            "source_event_id": "$event_id"
+          }
+        }
+      ]
+    }
+  },
+  "publishes": ["finance.transaction_added"],
+  "publish_acls": {
+    "finance.transaction_added": { "require_role": "adult" }
+  },
   "nav": {
     "label": "Finances"
+  },
+  "glance": {
+    "source": {
+      "kind": "sql",
+      "query": "SELECT printf('%.2f', COALESCE(SUM(amount_cents), 0) / 100.0) AS value FROM app_finances__transactions WHERE substr(date, 1, 7) = substr(:today, 1, 7) LIMIT 1"
+    },
+    "display": { "template": "stat", "value": "value", "label": "spent this month", "empty_hides": true }
   },
   "resource_limits": {
     "max_db_bytes": 52428800

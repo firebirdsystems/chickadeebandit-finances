@@ -1,9 +1,12 @@
 {
   "id": "finances",
-  "contexts": ["household", "shared_space"],
+  "contexts": [
+    "household",
+    "shared_space"
+  ],
   "name": "Finances",
-  "version": "1.1.1",
-  "description": "Household budget tracker — create spending budgets, log transactions, and see how much remains each period.",
+  "version": "1.2.0",
+  "description": "Household budget tracker \u2014 create spending budgets, log transactions, and see how much remains each period.",
   "entrypoint": "index.html",
   "runtime": "static",
   "category": "family",
@@ -36,6 +39,11 @@
       "kind": "adult_only",
       "audit_writes": true
     }
+  },
+  "delete_file_columns": {
+    "receipts": [
+      "file_id"
+    ]
   },
   "db_plaintext_columns": [
     "date",
@@ -82,9 +90,13 @@
       ]
     }
   },
-  "publishes": ["finance.transaction_added"],
+  "publishes": [
+    "finance.transaction_added"
+  ],
   "publish_acls": {
-    "finance.transaction_added": { "require_role": "adult" }
+    "finance.transaction_added": {
+      "require_role": "adult"
+    }
   },
   "nav": {
     "label": "Finances"
@@ -94,11 +106,16 @@
       "kind": "sql",
       "query": "SELECT printf('%.2f', COALESCE(SUM(amount_cents), 0) / 100.0) AS value FROM app_finances__transactions WHERE substr(date, 1, 7) = substr(:today, 1, 7) LIMIT 1"
     },
-    "display": { "template": "stat", "value": "value", "label": "spent this month", "empty_hides": true }
+    "display": {
+      "template": "stat",
+      "value": "value",
+      "label": "spent this month",
+      "empty_hides": true
+    }
   },
   "resource_limits": {
     "max_db_bytes": 52428800
   },
-  "icon": "💰",
+  "icon": "\ud83d\udcb0",
   "kiosk": "never"
 }

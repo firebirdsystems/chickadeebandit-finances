@@ -26,6 +26,10 @@
     "requires_approval": false
   },
   "storage": "db",
+  "preload": {
+    "budgets": {"sql": "SELECT id, name, limit_cents, period, color FROM app_finances__budgets"},
+    "transactions": {"sql": "SELECT id, budget_id, amount_cents, description, date FROM app_finances__transactions ORDER BY date DESC, id DESC LIMIT 250"}
+  },
   "row_policies": {
     "budgets": {
       "kind": "adult_only",

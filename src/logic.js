@@ -20,6 +20,12 @@ export function dollarsToCents(value, { allowZero = false } = {}) {
   return cents;
 }
 
+/**
+ * Exact for this module only: every Date here is constructed with `Date.UTC`
+ * (or handed in anchored at UTC midnight by the caller), so reading it back in
+ * UTC is a round trip, not a timezone conversion. Do NOT reach for this on a
+ * Date built from local parts.
+ */
 function utcDateString(date) {
   return date.toISOString().slice(0, 10);
 }

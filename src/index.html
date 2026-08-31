@@ -197,7 +197,7 @@ import {
   isValidDateString,
   normalizeColor, searchableFields,
 } from './logic.js';
-import { hubAlert, searchMatch } from '/hub-sdk.js';
+import { hubAlert, searchMatch, hubToday } from '/hub-sdk.js';
 
 const DB = window.__DB_URL ?? '';
 const FILES = window.__FILES_URL ?? '';
@@ -246,8 +246,14 @@ async function db(sql, params = []) {
 
 /* ── Data loading ──────────────────────────────────────────────────────────── */
 function summaryQuery() {
-  const monthly = currentPeriodBounds('monthly');
-  const weekly = currentPeriodBounds('weekly');
+  // currentPeriodBounds reads its anchor's UTC fields, so handing it the
+  // household's day at UTC midnight makes those fields exactly that day. With a
+  // bare `new Date()` the budget period rolled over at UTC midnight — on the
+  // last day of a month a UTC-8 household saw next month's budget from 4pm the
+  // day before.
+  const periodAnchor = new Date(hubToday() + 'T00:00:00Z');
+  const monthly = currentPeriodBounds('monthly', periodAnchor);
+  const weekly = currentPeriodBounds('weekly', periodAnchor);
   return {
     sql: `
       SELECT b.id AS budget_id, COALESCE(SUM(t.amount_cents), 0) AS spent_cents
@@ -652,7 +658,7 @@ function openTxForm(id) {
   document.getElementById('txTitle').textContent = t ? 'Edit Transaction' : 'New Transaction';
   document.getElementById('tAmount').value = t ? (t.amount_cents / 100).toFixed(2) : '';
   document.getElementById('tDesc').value   = t?.description ?? '';
-  document.getElementById('tDate').value   = t?.date ?? new Date().toISOString().slice(0, 10);
+  document.getElementById('tDate').value   = t?.date ?? hubToday();
 
   const sel = document.getElementById('tBudget');
   sel.replaceChildren(new Option('— Uncategorized —', ''));

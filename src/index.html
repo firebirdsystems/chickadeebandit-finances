@@ -61,6 +61,7 @@
     .empty { text-align: center; padding: 48px 16px; color: var(--muted); }
     .empty p { margin-bottom: 12px; }
     .load-error { margin-bottom: 16px; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #991b1b; }
+    .adults-only { margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--muted); }
 
     /* Modal */
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -102,6 +103,9 @@
   </div>
   <div class="load-error" id="loadError" role="alert" hidden>
     Finances could not be loaded. Please refresh and try again.
+  </div>
+  <div class="adults-only" id="adultsOnly" hidden>
+    Finances is kept to the adults in this household.
   </div>
 
   <div id="budgetView">
@@ -240,7 +244,16 @@ async function db(sql, params = []) {
     body: JSON.stringify({ sql, params }),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `DB error ${res.status}`);
+  if (!res.ok) {
+    // Carry the status: a 403 here is the row policy refusing this member, which
+    // is a permanent answer and needs a different message from a transient
+    // failure. The identity itself is never read in this app (every table is
+    // audit_writes; the hub stamps the actor), so the server's refusal is the
+    // only thing that may decide what a member is shown.
+    const err = new Error(body.error || `DB error ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   return body;
 }
 
@@ -735,6 +748,19 @@ async function init() {
   try {
     await loadAll();
   } catch (e) {
+    // Every table here is `adult_only`, so the hub refuses even the SELECT for a
+    // non-adult. The app's audience is `adults` and normally nobody else gets
+    // this far — but an admin can grant a member access individually ("Granted"
+    // in the hub's Member access panel), which is checked BEFORE the audience
+    // rule. On that path this told them to "refresh and try again", which would
+    // never have helped.
+    if (e?.status === 403) {
+      document.getElementById('adultsOnly').hidden = false;
+      for (const id of ['newBudgetBtn', 'newTxBtn']) document.getElementById(id).hidden = true;
+      document.querySelector('.tabs').hidden = true;
+      for (const id of ['budgetView', 'allTxView', 'receiptsView']) document.getElementById(id).style.display = 'none';
+      return;
+    }
     console.error('Failed to load finances:', e);
     document.getElementById('loadError').hidden = false;
     return;

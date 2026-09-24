@@ -1,0 +1,124 @@
+{
+  "scenarios": [
+    {
+      "name": "budgets, transactions and receipts are adults-only: a child can neither read nor write them",
+      "members": { "parent": "adult", "partner": "adult", "kid": "child" },
+      "steps": [
+        {
+          "action": "seedRaw",
+          "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES ('b1', 'Groceries', 60000, 'monthly', '#6366f1')"
+        },
+        {
+          "action": "seedRaw",
+          "sql": "INSERT INTO app_finances__receipts (id, file_id, filename, note, received_at) VALUES ('r1', 'f1', 'receipt.pdf', 'weekly shop', '2026-01-02T00:00:00Z')"
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, ?)",
+          "params": ["t1", "b1", 4599, "Supermarket", "2026-01-02"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "SELECT id FROM app_finances__transactions",
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "SELECT id FROM app_finances__budgets",
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "SELECT id FROM app_finances__receipts",
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "db",
+          "as": "kid",
+          "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, ?)",
+          "params": ["t2", "b1", 100, "Candy", "2026-01-03"],
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "db",
+          "as": "partner",
+          "sql": "SELECT id, amount_cents, description FROM app_finances__transactions",
+          "expect": { "status": 200, "rowCount": 1, "rowsContain": [{ "id": "t1", "amount_cents": 4599, "description": "Supermarket" }] }
+        },
+        {
+          "action": "db",
+          "as": "partner",
+          "sql": "SELECT id FROM app_finances__receipts",
+          "expect": { "status": 200, "rowCount": 1 }
+        }
+      ]
+    },
+    {
+      "name": "amounts must be positive whole cents and budget periods are monthly or weekly",
+      "members": { "parent": "adult" },
+      "steps": [
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period) VALUES (?, ?, ?, ?)",
+          "params": ["b1", "Fun", 10000, "yearly"],
+          "expect": { "status": 400, "errorIncludes": "CHECK constraint failed" }
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period) VALUES (?, ?, ?, ?)",
+          "params": ["b1", "Fun", 10000, "weekly"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, ?)",
+          "params": ["t0", "b1", 0, "Nothing", "2026-01-02"],
+          "expect": { "status": 400, "errorIncludes": "CHECK constraint failed" }
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, ?)",
+          "params": ["t1", "b1", 1250, "Movie", "2026-01-02"],
+          "expect": { "status": 200 }
+        },
+        {
+          "action": "db",
+          "as": "parent",
+          "sql": "SELECT id, amount_cents FROM app_finances__transactions",
+          "expect": { "status": 200, "rowCount": 1, "rowsContain": [{ "id": "t1", "amount_cents": 1250 }] }
+        }
+      ]
+    },
+    {
+      "name": "only an adult may publish finance.transaction_added",
+      "members": { "parent": "adult", "kid": "child" },
+      "steps": [
+        {
+          "action": "publish",
+          "as": "kid",
+          "type": "finance.transaction_added",
+          "subject_id": "t1",
+          "payload": { "amount_cents": 1250 },
+          "expect": { "status": 403 }
+        },
+        {
+          "action": "publish",
+          "as": "parent",
+          "type": "finance.transaction_added",
+          "subject_id": "t1",
+          "payload": { "amount_cents": 1250 },
+          "expect": { "status": 201 }
+        }
+      ]
+    }
+  ]
+}

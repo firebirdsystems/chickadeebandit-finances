@@ -1,0 +1,387 @@
+{
+  "seed": [
+    {
+      "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "pb-groc",
+        "Groceries",
+        90000,
+        "monthly",
+        "#10b981"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "pb-dine",
+        "Dining out",
+        25000,
+        "monthly",
+        "#f59e0b"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "pb-gas",
+        "Gas and transit",
+        18000,
+        "monthly",
+        "#0ea5e9"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "pb-kids",
+        "Kids activities",
+        30000,
+        "monthly",
+        "#8b5cf6"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "pb-home",
+        "Household supplies",
+        15000,
+        "monthly",
+        "#64748b"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "pb-fun",
+        "Weekly fun money",
+        6000,
+        "weekly",
+        "#ec4899"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__budgets (id, name, limit_cents, period, color) VALUES (?, ?, ?, ?, ?)",
+      "params": [
+        "pb-coffee",
+        "Coffee",
+        2500,
+        "weekly",
+        "#f97316"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','0 days'))",
+      "params": [
+        "pt-00",
+        "pb-groc",
+        14237,
+        "Trader Joe's weekly shop"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','0 days'))",
+      "params": [
+        "pt-01",
+        "pb-coffee",
+        575,
+        "Latte at Corner Perk"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-1 days'))",
+      "params": [
+        "pt-02",
+        "pb-gas",
+        4810,
+        "Shell fill-up"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-1 days'))",
+      "params": [
+        "pt-03",
+        "pb-dine",
+        3890,
+        "Thai takeout"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-1 days'))",
+      "params": [
+        "pt-04",
+        "pb-fun",
+        1800,
+        "Movie tickets"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-2 days'))",
+      "params": [
+        "pt-05",
+        "pb-groc",
+        2264,
+        "Farmers market produce"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-2 days'))",
+      "params": [
+        "pt-06",
+        "pb-kids",
+        8500,
+        "Soccer league fee"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-2 days'))",
+      "params": [
+        "pt-07",
+        "pb-coffee",
+        450,
+        "Drip coffee"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-3 days'))",
+      "params": [
+        "pt-08",
+        "pb-home",
+        3299,
+        "Paper towels and detergent"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-4 days'))",
+      "params": [
+        "pt-09",
+        "pb-groc",
+        16820,
+        "Costco run"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-5 days'))",
+      "params": [
+        "pt-10",
+        "pb-dine",
+        6215,
+        "Pizza night out"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-5 days'))",
+      "params": [
+        "pt-11",
+        "pb-fun",
+        2400,
+        "Mini golf"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, NULL, ?, ?, date('now','-6 days'))",
+      "params": [
+        "pt-12",
+        12000,
+        "Vet visit for Biscuit"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-7 days'))",
+      "params": [
+        "pt-13",
+        "pb-gas",
+        5120,
+        "Chevron fill-up"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-8 days'))",
+      "params": [
+        "pt-14",
+        "pb-groc",
+        9844,
+        "Safeway midweek"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-8 days'))",
+      "params": [
+        "pt-15",
+        "pb-kids",
+        4500,
+        "Piano lesson"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-9 days'))",
+      "params": [
+        "pt-16",
+        "pb-coffee",
+        1150,
+        "Coffee with Sam"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-10 days'))",
+      "params": [
+        "pt-17",
+        "pb-home",
+        1875,
+        "Light bulbs and batteries"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-11 days'))",
+      "params": [
+        "pt-18",
+        "pb-dine",
+        2740,
+        "Burrito lunch"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-12 days'))",
+      "params": [
+        "pt-19",
+        "pb-groc",
+        13390,
+        "Trader Joe's weekly shop"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-13 days'))",
+      "params": [
+        "pt-20",
+        "pb-kids",
+        2200,
+        "School book fair"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-14 days'))",
+      "params": [
+        "pt-21",
+        "pb-gas",
+        2750,
+        "Bus pass reload"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, NULL, ?, ?, date('now','-15 days'))",
+      "params": [
+        "pt-22",
+        8999,
+        "Birthday gift for Grandma"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-16 days'))",
+      "params": [
+        "pt-23",
+        "pb-groc",
+        7412,
+        "Safeway top-up"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-17 days'))",
+      "params": [
+        "pt-24",
+        "pb-dine",
+        5460,
+        "Sushi date night"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-18 days'))",
+      "params": [
+        "pt-25",
+        "pb-home",
+        4650,
+        "Furnace filters"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-19 days'))",
+      "params": [
+        "pt-26",
+        "pb-kids",
+        4500,
+        "Piano lesson"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-20 days'))",
+      "params": [
+        "pt-27",
+        "pb-groc",
+        15105,
+        "Costco run"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-21 days'))",
+      "params": [
+        "pt-28",
+        "pb-fun",
+        3200,
+        "Bowling"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-22 days'))",
+      "params": [
+        "pt-29",
+        "pb-gas",
+        4930,
+        "Shell fill-up"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-23 days'))",
+      "params": [
+        "pt-30",
+        "pb-dine",
+        1890,
+        "Bagels for the team"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-24 days'))",
+      "params": [
+        "pt-31",
+        "pb-groc",
+        11876,
+        "Trader Joe's weekly shop"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-26 days'))",
+      "params": [
+        "pt-32",
+        "pb-kids",
+        6000,
+        "Swim lessons"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-27 days'))",
+      "params": [
+        "pt-33",
+        "pb-home",
+        2380,
+        "Cleaning supplies"
+      ]
+    },
+    {
+      "sql": "INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?, ?, ?, ?, date('now','-28 days'))",
+      "params": [
+        "pt-34",
+        "pb-groc",
+        8140,
+        "Farmers market and bakery"
+      ]
+    }
+  ]
+}

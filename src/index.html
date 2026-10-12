@@ -60,7 +60,9 @@
 
     .empty { text-align: center; padding: 48px 16px; color: var(--muted); }
     .empty p { margin-bottom: 12px; }
-    .load-error { margin-bottom: 16px; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 8px; background: var(--bg); color: #991b1b; }
+    .load-error { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--hub-tint-danger, #fee2e2); color: var(--hub-tint-danger-fg, #b91c1c); font-size: 0.9rem; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    .load-error[hidden] { display: none; }
+    .load-error-retry { background: none; border: 1px solid currentColor; border-radius: 8px; padding: 5px 10px; font: inherit; font-weight: 600; color: inherit; cursor: pointer; flex-shrink: 0; }
     .adults-only { margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--muted); }
 
     /* Modal */
@@ -101,9 +103,8 @@
     <button class="tab" id="tabTransactions">Recent Transactions</button>
     <button class="tab" id="tabReceipts">Receipts</button>
   </div>
-  <div class="load-error" id="loadError" role="alert" hidden>
-    Finances could not be loaded. Please refresh and try again.
-  </div>
+  <div class="load-error" id="loadError" data-testid="load-error" role="alert" hidden><span>Couldn’t load your budgets.</span>
+    <button type="button" class="load-error-retry" id="loadRetryBtn" data-testid="load-retry">Try again</button></div>
   <div class="adults-only" id="adultsOnly" hidden>
     Finances is kept to the adults in this household.
   </div>
@@ -243,14 +244,14 @@ async function db(sql, params = []) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sql, params }),
   });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body || typeof body !== "object" || body.error) {
     // Carry the status: a 403 here is the row policy refusing this member, which
     // is a permanent answer and needs a different message from a transient
     // failure. The identity itself is never read in this app (every table is
     // audit_writes; the hub stamps the actor), so the server's refusal is the
     // only thing that may decide what a member is shown.
-    const err = new Error(body.error || `DB error ${res.status}`);
+    const err = new Error(body?.error || `DB error ${res.status}`);
     err.status = res.status;
     throw err;
   }
@@ -544,6 +545,8 @@ function renderReceipts() {
 }
 
 function render() {
+  // The first load failed: the budgets are unknown, not empty.
+  if (loadFailed) return;
   if (activeTab === 'budgets') {
     renderBudgets();
   } else if (activeTab === 'receipts') {
@@ -562,8 +565,8 @@ function setTab(tab) {
   document.getElementById('budgetView').style.display    = tab === 'budgets' ? '' : 'none';
   document.getElementById('allTxView').style.display     = tab === 'transactions' ? '' : 'none';
   document.getElementById('receiptsView').style.display  = tab === 'receipts' ? '' : 'none';
-  if (tab === 'receipts' && !receiptsLoaded) {
-    loadReceipts().then(render).catch(() => {});
+  if (tab === 'receipts' && !receiptsLoaded && !loadFailed) {
+    loadReceipts().then(render).catch(() => hubAlert('Receipts could not be loaded. Please try again.'));
   }
   render();
 }
@@ -744,9 +747,18 @@ async function deleteTransaction() {
 }
 
 /* ── Init ──────────────────────────────────────────────────────────────────── */
+let loadFailed = false;
+
+function setLoadFailed(failed) {
+  loadFailed = failed;
+  document.getElementById('loadError').hidden = !failed;
+  for (const id of ['newBudgetBtn', 'newTxBtn']) document.getElementById(id).hidden = failed;
+}
+
 async function init() {
   try {
     await loadAll();
+    setLoadFailed(false);
   } catch (e) {
     // Every table here is `adult_only`, so the hub refuses even the SELECT for a
     // non-adult. The app's audience is `adults` and normally nobody else gets
@@ -762,13 +774,15 @@ async function init() {
       return;
     }
     console.error('Failed to load finances:', e);
-    document.getElementById('loadError').hidden = false;
+    setLoadFailed(true);
     return;
   }
-  render();
+  // A retry can land on the receipts tab, which reads on first showing.
+  setTab(activeTab);
 }
 
 function setupEventHandlers() {
+  document.getElementById('loadRetryBtn').addEventListener('click', init);
   document.getElementById('newBudgetBtn').addEventListener('click', () => openBudgetForm());
   document.getElementById('newTxBtn').addEventListener('click', () => openTxForm());
   document.getElementById('tabBudgets').addEventListener('click', () => setTab('budgets'));

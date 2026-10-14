@@ -44,10 +44,8 @@
       "audit_writes": true
     }
   },
-  "delete_file_columns": {
-    "receipts": [
-      "file_id"
-    ]
+  "file_columns": {
+    "receipts": { "columns": ["file_id"] }
   },
   "db_plaintext_columns": [
     "date",
@@ -131,9 +129,6 @@
       "label": "spent this month",
       "empty_hides": true
     }
-  },
-  "resource_limits": {
-    "max_db_bytes": 52428800
   },
   "icon": "\ud83d\udcb0",
   "kiosk": "never"

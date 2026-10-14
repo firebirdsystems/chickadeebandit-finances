@@ -201,6 +201,7 @@ import {
   dollarsToCents,
   isValidDateString,
   normalizeColor, searchableFields,
+  outcomeUnknown, storedDiffers, SAVED_AS_FIRST, failureLine,
 } from './logic.js';
 import { hubAlert, searchMatch, hubToday } from '/hub-sdk.js';
 
@@ -253,10 +254,30 @@ async function db(sql, params = []) {
     // only thing that may decide what a member is shown.
     const err = new Error(body?.error || `DB error ${res.status}`);
     err.status = res.status;
+    if (typeof body?.code === 'string') err.code = body.code;
     throw err;
   }
   return body;
 }
+
+function userError(msg) { return Object.assign(new Error(msg), { forUser: true }); }
+
+/**
+ * A write that changed nothing: re-read the row so the line can say "removed"
+ * (gone) or "permission" (still there — the hub narrowed the write). The
+ * line is thrown as the app's own words for the write's catch to show.
+ */
+async function changedNothing(table, id, words) {
+  let found = null;
+  try { found = !!(await db(`SELECT id FROM ${table} WHERE id=?`, [id])).rows?.[0]; }
+  catch (readErr) { console.error(readErr); }
+  return userError(failureLine(null, { ...words, found }));
+}
+
+const BUDGET_SAVE = { action: 'save the budget', thing: 'budget' };
+const BUDGET_DELETE = { action: 'delete the budget', thing: 'budget' };
+const TX_SAVE = { action: 'save the transaction', thing: 'transaction' };
+const TX_DELETE = { action: 'delete the transaction', thing: 'transaction' };
 
 /* ── Data loading ──────────────────────────────────────────────────────────── */
 function summaryQuery() {
@@ -622,8 +643,9 @@ async function saveBudget() {
 
   try {
     if (editingBudgetId) {
-      await db('UPDATE app_finances__budgets SET name=?, limit_cents=?, period=?, color=? WHERE id=?',
+      const result = await db('UPDATE app_finances__budgets SET name=?, limit_cents=?, period=?, color=? WHERE id=?',
         [name, limitCents, period, selectedColor, editingBudgetId]);
+      if (DB && Number(result?.changed ?? 0) === 0) throw await changedNothing('app_finances__budgets', editingBudgetId, BUDGET_SAVE);
       budgets = budgets.map(b => b.id === editingBudgetId
         ? { ...b, name, limit_cents: limitCents, period, color: selectedColor } : b);
     } else {
@@ -639,14 +661,24 @@ async function saveBudget() {
       }];
     }
 
-    budgets.sort((a, b) => a.name.localeCompare(b.name));
-    await loadBudgetSummaries();
-    closeBudgetForm();
-    render();
   } catch (error) {
     console.error('Failed to save budget:', error);
-    hubAlert('The budget could not be saved. Please try again.');
+    hubAlert(failureLine(error, BUDGET_SAVE));
+    return;
   }
+
+  // The budget is stored: a failed totals reload is not a failed save.
+  budgets.sort((a, b) => a.name.localeCompare(b.name));
+  let refreshed = true;
+  try {
+    await loadBudgetSummaries();
+  } catch (error) {
+    console.error('Failed to reload budget totals:', error);
+    refreshed = false;
+  }
+  closeBudgetForm();
+  render();
+  if (!refreshed) hubAlert('The budget was saved, but the totals couldn’t be refreshed — reload to see them.');
 }
 
 async function deleteBudget() {
@@ -654,7 +686,8 @@ async function deleteBudget() {
   if (!confirm('Delete this budget? Its transactions will become uncategorized.')) return;
   const id = editingBudgetId;
   try {
-    await db('DELETE FROM app_finances__budgets WHERE id=?', [id]);
+    const result = await db('DELETE FROM app_finances__budgets WHERE id=?', [id]);
+    if (DB && Number(result?.changed ?? 0) === 0) throw await changedNothing('app_finances__budgets', id, BUDGET_DELETE);
     budgets      = budgets.filter(b => b.id !== id);
     budgetSpent.delete(id);
     transactions = transactions.map(t => t.budget_id === id ? { ...t, budget_id: null } : t);
@@ -663,7 +696,7 @@ async function deleteBudget() {
     render();
   } catch (error) {
     console.error('Failed to delete budget:', error);
-    hubAlert('The budget could not be deleted. Please try again.');
+    hubAlert(failureLine(error, BUDGET_DELETE));
   }
 }
 
@@ -684,16 +717,25 @@ function openTxForm(id) {
   if (!t && selectedBudgetId) sel.value = selectedBudgetId;
 
   document.getElementById('txDeleteBtn').style.display = t ? '' : 'none';
-  document.getElementById('txOverlay').style.display = 'flex';
+  const overlay = document.getElementById('txOverlay');
+  delete overlay.dataset.rowId;
+  txFormOpens++;
+  overlay.style.display = 'flex';
   document.getElementById('tAmount').focus();
 }
 
 function closeTxForm() {
-  document.getElementById('txOverlay').style.display = 'none';
+  const overlay = document.getElementById('txOverlay');
+  overlay.style.display = 'none';
+  delete overlay.dataset.rowId;
   editingTxId = null;
 }
 
+let savingTx = false;
+let txFormOpens = 0; // which opening of the form a save belongs to
+
 async function saveTransaction() {
+  if (savingTx) return;
   const amountCents = dollarsToCents(document.getElementById('tAmount').value);
   const desc   = document.getElementById('tDesc').value.trim();
   const date   = document.getElementById('tDate').value;
@@ -707,28 +749,72 @@ async function saveTransaction() {
     return;
   }
 
+  savingTx = true;
+  const opening = txFormOpens;
+  let savedNote = '';
   try {
     if (editingTxId) {
-      await db('UPDATE app_finances__transactions SET amount_cents=?, description=?, date=?, budget_id=? WHERE id=?',
+      const result = await db('UPDATE app_finances__transactions SET amount_cents=?, description=?, date=?, budget_id=? WHERE id=?',
         [amountCents, desc, date, budgetId, editingTxId]);
+      if (DB && Number(result?.changed ?? 0) === 0) throw await changedNothing('app_finances__transactions', editingTxId, TX_SAVE);
     } else {
-      const id = crypto.randomUUID();
-      await db('INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?,?,?,?,?)',
-        [id, budgetId, amountCents, desc, date]);
+      // The id is the open form's, minted on its first Save and sent on every
+      // retry: a try whose answer was lost may have stored the transaction, and
+      // a second press must find it rather than record the money twice.
+      const overlay = document.getElementById('txOverlay');
+      const id = (overlay.dataset.rowId ||= crypto.randomUUID());
+      const typed = { budget_id: budgetId, amount_cents: amountCents, description: desc, date };
+      let stored = typed;
+      try {
+        await db('INSERT INTO app_finances__transactions (id, budget_id, amount_cents, description, date) VALUES (?,?,?,?,?)',
+          [id, budgetId, amountCents, desc, date]);
+      } catch (error) {
+        // Unknown outcome: read it back by the pinned id. Found means an earlier
+        // try landed and its success path never ran, so it runs now, once. Not
+        // found, or the read failed: the save fails, the id stays pinned.
+        if (!DB || !outcomeUnknown(error)) throw error;
+        let row = null;
+        try { row = (await db('SELECT id, budget_id, amount_cents, description, date FROM app_finances__transactions WHERE id=?', [id])).rows?.[0] ?? null; }
+        catch (readErr) {
+          // The id is ours: with the read-back failed, a UNIQUE answer may be this
+          // form's own first try, so nothing is known — "try again", not "already exists".
+          console.error(readErr);
+          throw new Error("create outcome unknown", { cause: error });
+        }
+        if (!row) throw error;
+        console.error(error);
+        // Edited since that first try: what was stored is kept, and said so.
+        if (storedDiffers(row, typed)) savedNote = SAVED_AS_FIRST;
+        stored = { budget_id: row.budget_id ?? null, amount_cents: Number(row.amount_cents) || 0, description: row.description, date: row.date };
+      }
+      delete overlay.dataset.rowId;
       await publishEvent('finance.transaction_added', id, {
-        amount_cents: amountCents,
-        budget_id: budgetId,
-        date,
+        amount_cents: stored.amount_cents,
+        budget_id: stored.budget_id,
+        date: stored.date,
       });
     }
-
-    await Promise.all([loadRecentTransactions(), loadBudgetSummaries()]);
-    closeTxForm();
-    render();
   } catch (error) {
+    savingTx = false;
     console.error('Failed to save transaction:', error);
-    hubAlert('The transaction could not be saved. Please try again.');
+    hubAlert(failureLine(error, TX_SAVE));
+    return;
   }
+
+  // The write is stored: a list that fails to refresh must not make it look unsaved.
+  let refreshed = true;
+  try {
+    await Promise.all([loadRecentTransactions(), loadBudgetSummaries()]);
+  } catch (error) {
+    console.error('Failed to refresh transactions:', error);
+    refreshed = false;
+  }
+  savingTx = false;
+  // Close only the form this save came from, not one opened since.
+  if (txFormOpens === opening) closeTxForm();
+  render();
+  if (savedNote) hubAlert(savedNote);
+  else if (!refreshed) hubAlert('The transaction was saved, but the list couldn’t be refreshed — reload to see it.');
 }
 
 async function deleteTransaction() {
@@ -736,14 +822,26 @@ async function deleteTransaction() {
   if (!confirm('Delete this transaction?')) return;
   const id = editingTxId;
   try {
-    await db('DELETE FROM app_finances__transactions WHERE id=?', [id]);
-    await Promise.all([loadRecentTransactions(), loadBudgetSummaries()]);
-    closeTxForm();
-    render();
+    const result = await db('DELETE FROM app_finances__transactions WHERE id=?', [id]);
+    if (DB && Number(result?.changed ?? 0) === 0) throw await changedNothing('app_finances__transactions', id, TX_DELETE);
   } catch (error) {
     console.error('Failed to delete transaction:', error);
-    hubAlert('The transaction could not be deleted. Please try again.');
+    hubAlert(failureLine(error, TX_DELETE));
+    return;
   }
+
+  // The delete is stored: a failed refresh is not a failed delete.
+  let refreshed = true;
+  try {
+    await Promise.all([loadRecentTransactions(), loadBudgetSummaries()]);
+  } catch (error) {
+    console.error('Failed to refresh after delete:', error);
+    refreshed = false;
+    transactions = transactions.filter(t => t.id !== id);
+  }
+  closeTxForm();
+  render();
+  if (!refreshed) hubAlert('The transaction was deleted, but the list couldn’t be refreshed — reload to see it.');
 }
 
 /* ── Init ──────────────────────────────────────────────────────────────────── */
